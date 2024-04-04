@@ -9,14 +9,17 @@ import (
 )
 
 type dispatcher struct {
-	scale   float64
-	svg     *etree.Element
-	bg      *etree.Element
-	config  *Config
-	lines   []*etree.Element
-	row     int
-	col     int
-	bgWidth int
+	scale    float64
+	svg      *etree.Element
+	bg       *etree.Element
+	bgColor  string
+	fgColor  string
+	inverted bool
+	config   *Config
+	lines    []*etree.Element
+	row      int
+	col      int
+	bgWidth  int
 }
 
 func (p *dispatcher) dispatch(s ansi.Sequence) {
@@ -66,47 +69,10 @@ func (p *dispatcher) Execute(code byte) {
 		}
 	}
 	if code == '\n' {
-		p.endBackground()
+		p.resetBackground()
 		p.row++
 		p.col = 0
 	}
-}
-
-const fontHeightToWidthRatio = 1.68
-
-func (p *dispatcher) beginBackground(fill string) {
-	rect := etree.NewElement("rect")
-	rect.CreateAttr("fill", fill)
-
-	topOffset := p.config.Padding[top] + p.config.Margin[top] + (((p.config.Font.Size + p.config.LineHeight) / 5) * p.scale)
-	rowMultiplier := p.config.Font.Size * p.config.LineHeight
-
-	y := fmt.Sprintf("%.2fpx", float64(p.row)*rowMultiplier+topOffset)
-	x := p.scale * float64(p.col) * (p.config.Font.Size / fontHeightToWidthRatio)
-	x += float64(p.config.Margin[left] + p.config.Padding[left])
-	if p.config.ShowLineNumbers {
-		x += float64(p.config.Font.Size) * 3
-	}
-	rect.CreateAttr("x", fmt.Sprintf("%.2fpx", x))
-	rect.CreateAttr("y", y)
-	rect.CreateAttr("height", fmt.Sprintf("%.2fpx", p.config.Font.Size*p.config.LineHeight+1))
-	p.bg = rect
-}
-
-func (p *dispatcher) endBackground() {
-	if p.bg == nil {
-		return
-	}
-
-	width := (float64(p.bgWidth) + 0.5) * p.scale
-	if p.bgWidth == 0 {
-		width = 0
-	}
-
-	p.bg.CreateAttr("width", fmt.Sprintf("%.5fpx", width*(p.config.Font.Size/fontHeightToWidthRatio)))
-	p.svg.InsertChildAt(0, p.bg)
-	p.bg = nil
-	p.bgWidth = 0
 }
 
 func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
@@ -122,7 +88,9 @@ func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
 		// which would reset all the styles such that when text is appended to the last
 		// child of this line there is no styling applied.
 		p.lines[p.row].AddChild(span)
-		p.endBackground()
+		p.inverted = false
+		p.resetBackground()
+		p.resetForeground(span)
 	}
 
 	if len(s.Params) == 0 {
@@ -144,18 +112,31 @@ func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
 			span.CreateAttr("font-weight", "lighter")
 			span.CreateAttr("opacity", "0.5")
 			p.lines[p.row].AddChild(span)
+		case 22:
+			span.CreateAttr("font-weight", "normal")
+			span.CreateAttr("opacity", "1")
+			p.lines[p.row].AddChild(span)
 		case 9:
 			span.CreateAttr("text-decoration", "line-through")
 			p.lines[p.row].AddChild(span)
 		case 3:
 			span.CreateAttr("font-style", "italic")
 			p.lines[p.row].AddChild(span)
+		case 23:
+			span.CreateAttr("font-style", "normal")
+			p.lines[p.row].AddChild(span)
 		case 4:
 			span.CreateAttr("text-decoration", "underline")
 			p.lines[p.row].AddChild(span)
-		case 30, 31, 32, 33, 34, 35, 36, 37, 90, 91, 92, 93, 94, 95, 96, 97:
-			span.CreateAttr("fill", ansiPalette[v])
+		case 24:
+			span.CreateAttr("text-decoration", "none")
 			p.lines[p.row].AddChild(span)
+		case 7:
+			p.setInverted(span, true)
+		case 27:
+			p.setInverted(span, false)
+		case 30, 31, 32, 33, 34, 35, 36, 37:
+			p.setForeground(span, ansiPalette[v-30])
 		case 38:
 			i++
 			switch s.Param(i) {
@@ -170,45 +151,158 @@ func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
 				p.lines[p.row].AddChild(span)
 				i += 3
 			}
+		case 39:
+			p.resetForeground(span)
+		case 40, 41, 42, 43, 44, 45, 46, 47:
+			p.setBackground(span, ansiPalette[v-40])
 		case 48:
-			p.endBackground()
+			p.resetBackground()
 			i++
 			switch s.Param(i) {
 			case 5:
 				n := s.Param(i + 1)
 				i++
 				fill := palette[n]
-				p.beginBackground(fill)
+				p.setBackground(span, fill)
 			case 2:
 				fill := fmt.Sprintf("#%02x%02x%02x", s.Param(i+1), s.Param(i+2), s.Param(i+3))
-				p.beginBackground(fill)
+				p.setBackground(span, fill)
 				i += 3
 			}
+		case 49:
+			p.resetBackground()
+		case 90, 91, 92, 93, 94, 95, 96, 97:
+			p.setForeground(span, ansiPalette[v-80])
 		case 100, 101, 102, 103, 104, 105, 106, 107:
-			p.beginBackground(ansiPalette[v])
+			p.setBackground(span, ansiPalette[v-90])
 		}
 		i++
 	}
 }
+func (p *dispatcher) setForeground(span *etree.Element, color string) {
+	p.doSetForeground(span, color, p.inverted)
+}
+
+func (p *dispatcher) resetForeground(span *etree.Element) {
+	p.setForeground(span, "")
+}
+
+func (p *dispatcher) doSetForeground(span *etree.Element, color string, inverted bool) {
+	if inverted {
+		p.doSetBackground(span, color, false)
+
+		return
+	}
+
+	c := color
+	if c == "" {
+		if p.inverted {
+			c = defaultColors[1]
+		} else {
+			c = defaultColors[0]
+		}
+	}
+
+	span.CreateAttr("fill", c)
+	p.lines[p.row].AddChild(span)
+	p.fgColor = color
+}
+
+func (p *dispatcher) setBackground(span *etree.Element, fill string) {
+	p.doSetBackground(span, fill, p.inverted)
+}
+
+func (p *dispatcher) resetBackground() {
+	if p.bg == nil {
+		return
+	}
+
+	width := (float64(p.bgWidth) + 0.5) * p.scale
+	if p.bgWidth == 0 {
+		width = 0
+	}
+
+	p.bg.CreateAttr("width", fmt.Sprintf("%.5fpx", width*(p.config.Font.Size/fontHeightToWidthRatio)))
+	p.svg.InsertChildAt(0, p.bg)
+	p.bg = nil
+	p.bgWidth = 0
+	p.bgColor = ""
+}
+
+func (p *dispatcher) doSetBackground(span *etree.Element, fill string, inverted bool) {
+	if inverted {
+		p.doSetForeground(span, fill, false)
+
+		return
+	}
+
+	if fill == "" {
+		if p.inverted {
+			fill = defaultColors[0]
+		} else {
+			return
+		}
+	}
+
+	rect := etree.NewElement("rect")
+	rect.CreateAttr("fill", fill)
+
+	topOffset := p.config.Padding[top] + p.config.Margin[top] + (((p.config.Font.Size + p.config.LineHeight) / 5) * p.scale)
+	rowMultiplier := p.config.Font.Size * p.config.LineHeight
+
+	y := fmt.Sprintf("%.2fpx", float64(p.row)*rowMultiplier+topOffset)
+	x := p.scale * float64(p.col) * (p.config.Font.Size / fontHeightToWidthRatio)
+	x += float64(p.config.Margin[left] + p.config.Padding[left])
+	if p.config.ShowLineNumbers {
+		x += float64(p.config.Font.Size) * 3
+	}
+	rect.CreateAttr("x", fmt.Sprintf("%.2fpx", x))
+	rect.CreateAttr("y", y)
+	rect.CreateAttr("height", fmt.Sprintf("%.2fpx", p.config.Font.Size*p.config.LineHeight+1))
+	p.bg = rect
+	p.bgColor = fill
+}
+
+func (p *dispatcher) setInverted(span *etree.Element, inverted bool) {
+	if p.inverted == inverted {
+		return
+	}
+
+	p.inverted = inverted
+
+	fgColor := p.fgColor
+	bgColor := p.bgColor
+
+	p.doSetForeground(span, bgColor, false)
+	p.resetBackground()
+	p.doSetBackground(span, fgColor, false)
+}
+
+const fontHeightToWidthRatio = 1.68
 
 var ansiPalette = map[int]string{
-	30: "#282c34", // black
-	31: "#d17277", // red
-	32: "#a1c281", // green
-	33: "#de9b64", // yellow
-	34: "#74ade9", // blue
-	35: "#bb7cd7", // magenta
-	36: "#29A9BC", // cyan
-	37: "#acb2be", // white
+	0: "#282c34", // black
+	1: "#d17277", // red
+	2: "#a1c281", // green
+	3: "#de9b64", // yellow
+	4: "#74ade9", // blue
+	5: "#bb7cd7", // magenta
+	6: "#29A9BC", // cyan
+	7: "#acb2be", // white
 
-	90: "#676f82", // bright black
-	91: "#e6676d", // bright red
-	92: "#a9d47f", // bright green
-	93: "#de9b64", // bright yellow
-	94: "#66acff", // bright blue
-	95: "#c671eb", // bright magenta
-	96: "#69c6d1", // bright cyan
-	97: "#cccccc", // bright white
+	10: "#676f82", // bright black
+	11: "#e6676d", // bright red
+	12: "#a9d47f", // bright green
+	13: "#de9b64", // bright yellow
+	14: "#66acff", // bright blue
+	15: "#c671eb", // bright magenta
+	16: "#69c6d1", // bright cyan
+	17: "#cccccc", // bright white
+}
+
+var defaultColors = [2]string{
+	0: "#acb2be", // default foreground
+	1: "#282c34", // default background
 }
 
 var palette = []string{
