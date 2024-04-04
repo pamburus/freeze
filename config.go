@@ -46,6 +46,9 @@ type Config struct {
 	LineHeight      float64 `json:"line_height" help:"Line height relative to font size." group:"Line" placeholder:"1.2"`
 	Lines           []int   `json:"-" help:"Lines to capture (start,end)." group:"Line" placeholder:"0,-1" value:"0,-1"`
 	ShowLineNumbers bool    `json:"show_line_numbers" help:"" group:"Line" placeholder:"false"`
+
+	// Terminal
+	Terminal Terminal `json:"terminal" embed:"" prefix:"terminal." group:"Terminal"`
 }
 
 // Shadow is the configuration options for a drop shadow.
@@ -68,6 +71,11 @@ type Font struct {
 	File      string  `json:"file" help:"Font file to embed." placeholder:"monospace.ttf"`
 	Size      float64 `json:"size" help:"Font size to use for code." placeholder:"14"`
 	Ligatures bool    `json:"ligatures" help:"Use ligatures in the font." placeholder:"true" value:"true" negatable:""`
+}
+
+// Terminal is the configuration options for a terminal.
+type Terminal struct {
+	Theme string `json:"theme" help:"Terminal theme to use [one-dark|one-light]." placeholder:"one-dark"`
 }
 
 //go:embed configurations/*

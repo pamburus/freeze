@@ -296,12 +296,21 @@ func main() {
 		terminal.CreateAttr("filter", fmt.Sprintf("url(#%s)", id))
 	}
 
+	terminalTheme := themes[config.Terminal.Theme]
+
 	textGroup := image.SelectElement("g")
 	textGroup.CreateAttr("font-size", fmt.Sprintf("%.2fpx", config.Font.Size*float64(scale)))
 	textGroup.CreateAttr("clip-path", "url(#terminalMask)")
+	textGroup.CreateAttr("fill", terminalTheme.foreground)
 	text := textGroup.SelectElements("text")
 
-	d := dispatcher{lines: text, svg: textGroup, config: &config, scale: scale}
+	d := dispatcher{
+		lines:  text,
+		svg:    textGroup,
+		config: &config,
+		theme:  terminalTheme,
+		scale:  scale,
+	}
 
 	offsetLine := 0
 	if len(config.Lines) > 0 {
