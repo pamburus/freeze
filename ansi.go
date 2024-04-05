@@ -9,18 +9,19 @@ import (
 )
 
 type dispatcher struct {
-	scale    float64
-	svg      *etree.Element
-	bg       *etree.Element
-	bgColor  string
-	fgColor  string
-	inverted bool
-	config   *Config
-	theme    theme
-	lines    []*etree.Element
-	row      int
-	col      int
-	bgWidth  int
+	scale        float64
+	svg          *etree.Element
+	bg           *etree.Element
+	bgColor      string
+	fgColor      string
+	inverted     bool
+	config       *Config
+	theme        theme
+	lines        []*etree.Element
+	row          int
+	col          int
+	bgWidth      int
+	endsWithText bool
 }
 
 func (p *dispatcher) dispatch(s ansi.Sequence) {
@@ -61,6 +62,8 @@ func (p *dispatcher) Print(r rune) {
 	if p.bg != nil {
 		p.bgWidth += runewidth.RuneWidth(r)
 	}
+
+	p.endsWithText = true
 }
 
 func (p *dispatcher) Execute(code byte) {
@@ -73,6 +76,7 @@ func (p *dispatcher) Execute(code byte) {
 		p.resetBackground()
 		p.row++
 		p.col = 0
+		p.endsWithText = false
 	}
 }
 
@@ -82,8 +86,14 @@ func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
 		return
 	}
 
-	span := etree.NewElement("tspan")
-	span.CreateAttr("xml:space", "preserve")
+	var span *etree.Element
+	if p.endsWithText || len(p.lines[p.row].ChildElements()) == 0 {
+		span = etree.NewElement("tspan")
+		span.CreateAttr("xml:space", "preserve")
+	} else {
+		span = p.lines[p.row].ChildElements()[len(p.lines[p.row].ChildElements())-1]
+	}
+
 	reset := func() {
 		// reset ANSI, this is done by creating a new empty tspan,
 		// which would reset all the styles such that when text is appended to the last
@@ -92,6 +102,11 @@ func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
 		p.inverted = false
 		p.resetBackground()
 		p.resetForeground(span)
+	}
+
+	add := func() {
+		p.lines[p.row].AddChild(span)
+		p.endsWithText = false
 	}
 
 	if len(s.Params) == 0 {
@@ -108,30 +123,30 @@ func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
 			reset()
 		case 1:
 			span.CreateAttr("font-weight", "bold")
-			p.lines[p.row].AddChild(span)
+			add()
 		case 2:
 			span.CreateAttr("font-weight", "lighter")
 			span.CreateAttr("opacity", "0.5")
-			p.lines[p.row].AddChild(span)
+			add()
 		case 22:
 			span.CreateAttr("font-weight", "normal")
 			span.CreateAttr("opacity", "1")
-			p.lines[p.row].AddChild(span)
+			add()
 		case 9:
 			span.CreateAttr("text-decoration", "line-through")
-			p.lines[p.row].AddChild(span)
+			add()
 		case 3:
 			span.CreateAttr("font-style", "italic")
-			p.lines[p.row].AddChild(span)
+			add()
 		case 23:
 			span.CreateAttr("font-style", "normal")
-			p.lines[p.row].AddChild(span)
+			add()
 		case 4:
 			span.CreateAttr("text-decoration", "underline")
-			p.lines[p.row].AddChild(span)
+			add()
 		case 24:
 			span.CreateAttr("text-decoration", "none")
-			p.lines[p.row].AddChild(span)
+			add()
 		case 7:
 			p.setInverted(span, true)
 		case 27:
@@ -144,12 +159,11 @@ func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
 			case 5:
 				n := s.Param(i + 1)
 				i++
-				fill := palette[n]
-				span.CreateAttr("fill", fill)
-				p.lines[p.row].AddChild(span)
+				fill := p.paletteColor(n)
+				p.setForeground(span, fill)
 			case 2:
-				span.CreateAttr("fill", fmt.Sprintf("#%02x%02x%02x", s.Param(i+1), s.Param(i+2), s.Param(i+3)))
-				p.lines[p.row].AddChild(span)
+				fill := fmt.Sprintf("#%02x%02x%02x", s.Param(i+1), s.Param(i+2), s.Param(i+3))
+				p.setForeground(span, fill)
 				i += 3
 			}
 		case 39:
@@ -163,7 +177,7 @@ func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
 			case 5:
 				n := s.Param(i + 1)
 				i++
-				fill := palette[n]
+				fill := p.paletteColor(n)
 				p.setBackground(span, fill)
 			case 2:
 				fill := fmt.Sprintf("#%02x%02x%02x", s.Param(i+1), s.Param(i+2), s.Param(i+3))
@@ -173,9 +187,9 @@ func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
 		case 49:
 			p.resetBackground()
 		case 90, 91, 92, 93, 94, 95, 96, 97:
-			p.setForeground(span, p.theme.ansiPalette[v-80])
+			p.setForeground(span, p.theme.ansiPalette[v-90+8])
 		case 100, 101, 102, 103, 104, 105, 106, 107:
-			p.setBackground(span, p.theme.ansiPalette[v-90])
+			p.setBackground(span, p.theme.ansiPalette[v-100+8])
 		}
 		i++
 	}
@@ -207,6 +221,7 @@ func (p *dispatcher) doSetForeground(span *etree.Element, color string, inverted
 	span.CreateAttr("fill", c)
 	p.lines[p.row].AddChild(span)
 	p.fgColor = color
+	p.endsWithText = false
 }
 
 func (p *dispatcher) setBackground(span *etree.Element, fill string) {
@@ -279,19 +294,31 @@ func (p *dispatcher) setInverted(span *etree.Element, inverted bool) {
 	p.doSetBackground(span, fgColor, false)
 }
 
+func (p *dispatcher) paletteColor(n int) string {
+	if n < 0 || n >= len(palette) {
+		return ""
+	}
+
+	if n < len(p.theme.ansiPalette) {
+		return p.theme.ansiPalette[n]
+	}
+
+	return palette[n]
+}
+
 const fontHeightToWidthRatio = 1.68
 
 type theme struct {
 	background  string
 	foreground  string
-	ansiPalette map[int]string
+	ansiPalette [16]string
 }
 
 var themes = map[string]theme{
 	"one-dark": {
 		background: "#282c34",
 		foreground: "#acb2be",
-		ansiPalette: map[int]string{
+		ansiPalette: [16]string{
 			0: "#282c34", // black
 			1: "#d17277", // red
 			2: "#a1c281", // green
@@ -301,20 +328,20 @@ var themes = map[string]theme{
 			6: "#29a9bc", // cyan
 			7: "#acb2be", // white
 
-			10: "#676f82", // bright black
-			11: "#e6676d", // bright red
-			12: "#a9d47f", // bright green
-			13: "#de9b64", // bright yellow
-			14: "#66acff", // bright blue
-			15: "#c671eb", // bright magenta
-			16: "#69c6d1", // bright cyan
-			17: "#cccccc", // bright white
+			8:  "#676f82", // bright black
+			9:  "#e6676d", // bright red
+			10: "#a9d47f", // bright green
+			11: "#de9b64", // bright yellow
+			12: "#66acff", // bright blue
+			13: "#c671eb", // bright magenta
+			14: "#69c6d1", // bright cyan
+			15: "#cccccc", // bright white
 		},
 	},
 	"one-light": {
 		background: "#fffeff",
 		foreground: "#000000",
-		ansiPalette: map[int]string{
+		ansiPalette: [16]string{
 			0: "#000000", // black
 			1: "#c91b00", // red
 			2: "#00c200", // green
@@ -324,14 +351,14 @@ var themes = map[string]theme{
 			6: "#00c5c7", // cyan
 			7: "#c7c7c7", // white
 
-			10: "#676767", // bright black
-			11: "#ff6d67", // bright red
-			12: "#5ff967", // bright green
-			13: "#d8d800", // bright yellow
-			14: "#6871ff", // bright blue
-			15: "#ff76ff", // bright magenta
-			16: "#5ffdff", // bright cyan
-			17: "#fffeff", // bright white
+			8:  "#676767", // bright black
+			9:  "#ff6d67", // bright red
+			10: "#5ff967", // bright green
+			11: "#d8d800", // bright yellow
+			12: "#6871ff", // bright blue
+			13: "#ff76ff", // bright magenta
+			14: "#5ffdff", // bright cyan
+			15: "#fffeff", // bright white
 		},
 	},
 }
