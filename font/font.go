@@ -102,8 +102,16 @@ import (
 //go:embed JetBrainsMono-Regular.ttf
 var JetBrainsMonoTTF []byte
 
+//go:embed JetBrainsMono-Bold.ttf
+var JetBrainsMonoBoldTTF []byte
+
 //go:embed JetBrainsMonoNL-Regular.ttf
 var JetBrainsMonoNLTTF []byte
 
+//go:embed JetBrainsMonoNL-Bold.ttf
+var JetBrainsMonoNLBoldTTF []byte
+
 var JetBrainsMono string = base64.StdEncoding.EncodeToString(JetBrainsMonoTTF)
+var JetBrainsMonoBold string = base64.StdEncoding.EncodeToString(JetBrainsMonoBoldTTF)
 var JetBrainsMonoNL string = base64.StdEncoding.EncodeToString(JetBrainsMonoNLTTF)
+var JetBrainsMonoNLBold string = base64.StdEncoding.EncodeToString(JetBrainsMonoNLBoldTTF)

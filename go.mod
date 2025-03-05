@@ -1,10 +1,12 @@
 module github.com/charmbracelet/freeze
 
-go 1.21
+go 1.22
+
+toolchain go1.24.0
 
 require (
 	github.com/adrg/xdg v0.4.0
-	github.com/alecthomas/chroma/v2 v2.13.0
+	github.com/alecthomas/chroma/v2 v2.15.0
 	github.com/alecthomas/kong v0.9.0
 	github.com/aymanbagabas/go-udiff v0.2.0
 	github.com/beevik/etree v1.3.0
@@ -29,7 +31,7 @@ require (
 	github.com/charmbracelet/x/errors v0.0.0-20240117030013-d31dba354651 // indirect
 	github.com/charmbracelet/x/exp/strings v0.0.0-20240327191656-1e1cd98f30d4 // indirect
 	github.com/containerd/console v1.0.4 // indirect
-	github.com/dlclark/regexp2 v1.11.0 // indirect
+	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
@@ -45,3 +47,5 @@ require (
 	golang.org/x/term v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 )
+
+replace github.com/alecthomas/chroma/v2 => github.com/pamburus/chroma/v2 v2.0.0-20250305230449-0f4d55076588
