@@ -15,13 +15,13 @@ import (
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/alecthomas/kong"
 	"github.com/beevik/etree"
-	in "github.com/charmbracelet/freeze/input"
-	"github.com/charmbracelet/freeze/svg"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/x/exp/term/ansi"
 	"github.com/charmbracelet/x/exp/term/ansi/parser"
 	"github.com/mattn/go-isatty"
+	in "github.com/pamburus/freeze/input"
+	"github.com/pamburus/freeze/svg"
 )
 
 const (

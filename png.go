@@ -7,8 +7,8 @@ import (
 	"os/exec"
 
 	"github.com/beevik/etree"
-	"github.com/charmbracelet/freeze/font"
 	"github.com/kanrichan/resvg-go"
+	"github.com/pamburus/freeze/font"
 )
 
 func libsvgConvert(doc *etree.Document, w, h float64, output string) error {

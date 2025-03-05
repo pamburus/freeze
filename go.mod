@@ -1,4 +1,4 @@
-module github.com/charmbracelet/freeze
+module github.com/pamburus/freeze // forked from github.com/charmbracelet/freeze
 
 go 1.21
 
