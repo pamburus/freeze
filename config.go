@@ -76,7 +76,7 @@ type Font struct {
 
 // Terminal is the configuration options for a terminal.
 type Terminal struct {
-	Theme string `json:"theme" help:"Terminal theme to use [one-dark|one-light]." placeholder:"one-dark"`
+	Theme string `json:"theme" help:"Terminal theme to use [dark|light]." placeholder:"dark"`
 }
 
 //go:embed configurations/*

@@ -150,7 +150,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	if config.Input == "-" || in.IsPipe(os.Stdin) {
+	if config.Input == "-" /*|| in.IsPipe(os.Stdin)*/ {
 		input, err = in.ReadInput(os.Stdin)
 		lexer = lexers.Analyse(input)
 	} else if config.Execute != "" {

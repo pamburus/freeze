@@ -1,0 +1,52 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch Package",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
+            "args": [
+                "-x",
+                "cat /Users/pamburus/Downloads/Acronis/hl.log",
+                "-o",
+                "hl.svg",
+                "--window",
+                "-r",
+                "5",
+                "-m",
+                "25",
+                "--shadow.blur",
+                "5",
+                "--shadow.x",
+                "3",
+                "--shadow.y",
+                "3",
+                "--border.width",
+                "1",
+                "--border.color",
+                "#f0f0f0",
+                "--background",
+                "#fffeff",
+                "--font.family",
+                "MesloLGS NF",
+                "--font.size",
+                "12",
+                "--width",
+                "1280",
+                "-p",
+                "12",
+                "--line-height",
+                "1.25",
+                "-c",
+                "user",
+                // "--terminal.theme",
+                // "one-light",
+            ]
+        }
+    ]
+}

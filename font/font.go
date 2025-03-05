@@ -105,10 +105,16 @@ var JetBrainsMonoTTF []byte
 //go:embed JetBrainsMonoNL-Regular.ttf
 var JetBrainsMonoNLTTF []byte
 
+//go:embed MesloLGSNerdFont-Regular.woff2
+var MesloLGSNFBytes []byte
+
 var (
 	// JetBrainsMono font.
 	JetBrainsMono = base64.StdEncoding.EncodeToString(JetBrainsMonoTTF)
 
 	// JetBrainsMonoNL font.
 	JetBrainsMonoNL = base64.StdEncoding.EncodeToString(JetBrainsMonoNLTTF)
+
+	// MesloLGSNF font.
+	MesloLGSNF = base64.StdEncoding.EncodeToString(MesloLGSNFBytes)
 )

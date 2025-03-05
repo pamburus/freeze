@@ -14,6 +14,7 @@ type dispatcher struct {
 	bg           *etree.Element
 	bgColor      string
 	fgColor      string
+	fgColorIndex int
 	inverted     bool
 	config       *Config
 	theme        theme
@@ -22,6 +23,7 @@ type dispatcher struct {
 	col          int
 	bgWidth      int
 	endsWithText bool
+	bold         bool
 }
 
 func (p *dispatcher) dispatch(s ansi.Sequence) {
@@ -77,6 +79,8 @@ func (p *dispatcher) Execute(code byte) {
 		p.row++
 		p.col = 0
 		p.endsWithText = false
+		p.bold = false
+		p.fgColorIndex = -1
 	}
 }
 
@@ -100,6 +104,7 @@ func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
 		// child of this line there is no styling applied.
 		p.lines[p.row].AddChild(span)
 		p.inverted = false
+		p.bold = false
 		p.resetBackground()
 		p.resetForeground(span)
 	}
@@ -122,7 +127,11 @@ func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
 		case 0:
 			reset()
 		case 1:
-			span.CreateAttr("font-weight", "bold")
+			// span.CreateAttr("font-weight", "bold")
+			p.bold = true
+			if p.fgColorIndex >= 0 && p.fgColorIndex < 16 {
+				p.setForeground(span, p.paletteColor(p.fgColorIndex))
+			}
 			add()
 		case 2:
 			span.CreateAttr("font-weight", "lighter")
@@ -131,6 +140,7 @@ func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
 		case 22:
 			span.CreateAttr("font-weight", "normal")
 			span.CreateAttr("opacity", "1")
+			p.bold = false
 			add()
 		case 9:
 			span.CreateAttr("text-decoration", "line-through")
@@ -152,24 +162,27 @@ func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
 		case 27:
 			p.setInverted(span, false)
 		case 30, 31, 32, 33, 34, 35, 36, 37:
-			p.setForeground(span, p.theme.ansiPalette[v-30])
+			p.fgColorIndex = v - 30
+			p.setForeground(span, p.paletteColor(p.fgColorIndex))
 		case 38:
 			i++
 			switch s.Param(i) {
 			case 5:
 				n := s.Param(i + 1)
 				i++
+				p.fgColorIndex = n
 				fill := p.paletteColor(n)
 				p.setForeground(span, fill)
 			case 2:
 				fill := fmt.Sprintf("#%02x%02x%02x", s.Param(i+1), s.Param(i+2), s.Param(i+3))
 				p.setForeground(span, fill)
+				p.fgColorIndex = -1
 				i += 3
 			}
 		case 39:
 			p.resetForeground(span)
 		case 40, 41, 42, 43, 44, 45, 46, 47:
-			p.setBackground(span, p.theme.ansiPalette[v-40])
+			p.setBackground(span, p.paletteColor(v-40))
 		case 48:
 			p.resetBackground()
 			i++
@@ -187,9 +200,10 @@ func (p *dispatcher) CsiDispatch(s ansi.CsiSequence) {
 		case 49:
 			p.resetBackground()
 		case 90, 91, 92, 93, 94, 95, 96, 97:
-			p.setForeground(span, p.theme.ansiPalette[v-90+8])
+			p.fgColorIndex = v - 90 + 8
+			p.setForeground(span, p.paletteColor(p.fgColorIndex))
 		case 100, 101, 102, 103, 104, 105, 106, 107:
-			p.setBackground(span, p.theme.ansiPalette[v-100+8])
+			p.setBackground(span, p.paletteColor(v-100+8))
 		}
 		i++
 	}
@@ -200,6 +214,7 @@ func (p *dispatcher) setForeground(span *etree.Element, color string) {
 
 func (p *dispatcher) resetForeground(span *etree.Element) {
 	p.setForeground(span, "")
+	p.fgColorIndex = -1
 }
 
 func (p *dispatcher) doSetForeground(span *etree.Element, color string, inverted bool) {
@@ -289,9 +304,9 @@ func (p *dispatcher) setInverted(span *etree.Element, inverted bool) {
 	fgColor := p.fgColor
 	bgColor := p.bgColor
 
-	p.doSetForeground(span, bgColor, false)
 	p.resetBackground()
 	p.doSetBackground(span, fgColor, false)
+	p.doSetForeground(span, bgColor, false)
 }
 
 func (p *dispatcher) paletteColor(n int) string {
@@ -299,8 +314,13 @@ func (p *dispatcher) paletteColor(n int) string {
 		return ""
 	}
 
-	if n < len(p.theme.ansiPalette) {
-		return p.theme.ansiPalette[n]
+	tp := &p.theme.ansiPalette
+	if p.bold {
+		tp = &p.theme.ansiPaletteBold
+	}
+
+	if n < len(*tp) {
+		return (*tp)[n]
 	}
 
 	return palette[n]
@@ -309,25 +329,25 @@ func (p *dispatcher) paletteColor(n int) string {
 const fontHeightToWidthRatio = 1.68
 
 type theme struct {
-	background  string
-	foreground  string
-	ansiPalette [16]string
+	background      string
+	foreground      string
+	ansiPalette     [16]string
+	ansiPaletteBold [16]string
 }
 
 var themes = map[string]theme{
-	"one-dark": {
+	"dark": {
 		background: "#282c34",
 		foreground: "#acb2be",
 		ansiPalette: [16]string{
-			0: "#282c34", // black
-			1: "#d17277", // red
-			2: "#a1c281", // green
-			3: "#de9b64", // yellow
-			4: "#74ade9", // blue
-			5: "#bb7cd7", // magenta
-			6: "#29a9bc", // cyan
-			7: "#acb2be", // white
-
+			0:  "#282c34", // black
+			1:  "#d17277", // red
+			2:  "#a1c281", // green
+			3:  "#de9b64", // yellow
+			4:  "#74ade9", // blue
+			5:  "#bb7cd7", // magenta
+			6:  "#29a9bc", // cyan
+			7:  "#acb2be", // white
 			8:  "#676f82", // bright black
 			9:  "#e6676d", // bright red
 			10: "#a9d47f", // bright green
@@ -337,28 +357,63 @@ var themes = map[string]theme{
 			14: "#69c6d1", // bright cyan
 			15: "#cccccc", // bright white
 		},
+		ansiPaletteBold: [16]string{
+			0:  "#3e4451", // black
+			1:  "#de989c", // red
+			2:  "#bbd3a3", // green
+			3:  "#e7b68e", // yellow
+			4:  "#a0c7f0", // blue
+			5:  "#d0a3e3", // magenta
+			6:  "#42c2d6", // cyan
+			7:  "#c9cdd4", // white
+			8:  "#81899b", // bright black
+			9:  "#ed9397", // bright red
+			10: "#c3e1a5", // bright green
+			11: "#e7b68e", // bright yellow
+			12: "#99c7ff", // bright blue
+			13: "#d89ef1", // bright magenta
+			14: "#90d5dd", // bright cyan
+			15: "#e6e6e6", // bright white
+		},
 	},
-	"one-light": {
+	"light": {
 		background: "#fffeff",
-		foreground: "#000000",
+		foreground: "#3e4451",
 		ansiPalette: [16]string{
-			0: "#000000", // black
-			1: "#c91b00", // red
-			2: "#00c200", // green
-			3: "#c7c400", // yellow
-			4: "#0225c7", // blue
-			5: "#c930c7", // magenta
-			6: "#00c5c7", // cyan
-			7: "#c7c7c7", // white
-
-			8:  "#676767", // bright black
-			9:  "#ff6d67", // bright red
-			10: "#5ff967", // bright green
-			11: "#d8d800", // bright yellow
-			12: "#6871ff", // bright blue
-			13: "#ff76ff", // bright magenta
-			14: "#5ffdff", // bright cyan
-			15: "#fffeff", // bright white
+			0:  "#3e4451", // black
+			1:  "#ff6d67", // red
+			2:  "#5ff967", // green
+			3:  "#d8d800", // yellow
+			4:  "#6871ff", // blue
+			5:  "#ff76ff", // magenta
+			6:  "#5ffdff", // cyan
+			7:  "#fffeff", // white
+			8:  "#282c34", // bright black
+			9:  "#c91b00", // bright red
+			10: "#00c200", // bright green
+			11: "#c7c400", // bright yellow
+			12: "#0225c7", // bright blue
+			13: "#c930c7", // bright magenta
+			14: "#00c5c7", // bright cyan
+			15: "#c7c7c7", // bright white
+		},
+		ansiPaletteBold: [16]string{
+			0:  "#282c34", // black
+			1:  "#ff3b34", // red
+			2:  "#2ef738", // green
+			3:  "#a5a500", // yellow
+			4:  "#3543ff", // blue
+			5:  "#ff43ff", // magenta
+			6:  "#2cfbff", // cyan
+			7:  "#ffcbff", // white
+			8:  "#121417", // bright black
+			9:  "#961400", // bright red
+			10: "#008f00", // bright green
+			11: "#949100", // bright yellow
+			12: "#011c94", // bright blue
+			13: "#a0269e", // bright magenta
+			14: "#009194", // bright cyan
+			15: "#adadad", // bright white
 		},
 	},
 }

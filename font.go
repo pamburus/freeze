@@ -38,18 +38,27 @@ func fontOptions(config *Config) ([]svg.Option, error) {
 			svg.FontFamily(config.Font.Family),
 		}, nil
 	}
-	if config.Font.Family != "JetBrains Mono" {
+
+	switch config.Font.Family {
+	case "JetBrains Mono":
+		fontBase64 := font.JetBrainsMono
+		if !config.Font.Ligatures {
+			fontBase64 = font.JetBrainsMonoNL
+		}
+		return []svg.Option{
+			svg.EmbedFont(config.Font.Family, fontBase64, svg.WOFF2),
+			svg.FontFamily(config.Font.Family),
+		}, nil
+
+	case "MesloLGS NF":
+		return []svg.Option{
+			svg.EmbedFont(config.Font.Family, font.MesloLGSNF, svg.WOFF2),
+			svg.FontFamily(config.Font.Family),
+		}, nil
+
+	default:
 		return []svg.Option{
 			svg.FontFamily(config.Font.Family),
 		}, nil
 	}
-	config.Font.Family = "JetBrains Mono"
-	fontBase64 := font.JetBrainsMono
-	if !config.Font.Ligatures {
-		fontBase64 = font.JetBrainsMonoNL
-	}
-	return []svg.Option{
-		svg.EmbedFont(config.Font.Family, fontBase64, svg.WOFF2),
-		svg.FontFamily(config.Font.Family),
-	}, nil
 }
