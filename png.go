@@ -47,11 +47,11 @@ func resvgConvert(doc *etree.Document, w, h float64, output string) error {
 		printErrorFatal("Unable to write output", err)
 	}
 	defer fontdb.Close()
-	err = fontdb.LoadFontData(font.JetBrainsMonoTTF)
+	err = fontdb.LoadFontData(font.JetBrainsMonoRaw)
 	if err != nil {
 		printErrorFatal("Unable to load font", err)
 	}
-	err = fontdb.LoadFontData(font.JetBrainsMonoNLTTF)
+	err = fontdb.LoadFontData(font.JetBrainsMonoNLRaw)
 	if err != nil {
 		printErrorFatal("Unable to load font", err)
 	}

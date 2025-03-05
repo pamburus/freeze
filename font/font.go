@@ -99,19 +99,19 @@ import (
 	"encoding/base64"
 )
 
-//go:embed JetBrainsMono-Regular.ttf
-var JetBrainsMonoTTF []byte
+//go:embed JetBrainsMono-Regular.woff2
+var JetBrainsMonoRaw []byte
 
-//go:embed JetBrainsMono-Bold.ttf
-var JetBrainsMonoBoldTTF []byte
+//go:embed JetBrainsMono-Bold.woff2
+var JetBrainsMonoBoldRaw []byte
 
-//go:embed JetBrainsMonoNL-Regular.ttf
-var JetBrainsMonoNLTTF []byte
+//go:embed JetBrainsMonoNL-Regular.woff2
+var JetBrainsMonoNLRaw []byte
 
-//go:embed JetBrainsMonoNL-Bold.ttf
-var JetBrainsMonoNLBoldTTF []byte
+//go:embed JetBrainsMonoNL-Bold.woff2
+var JetBrainsMonoNLBoldRaw []byte
 
-var JetBrainsMono string = base64.StdEncoding.EncodeToString(JetBrainsMonoTTF)
-var JetBrainsMonoBold string = base64.StdEncoding.EncodeToString(JetBrainsMonoBoldTTF)
-var JetBrainsMonoNL string = base64.StdEncoding.EncodeToString(JetBrainsMonoNLTTF)
-var JetBrainsMonoNLBold string = base64.StdEncoding.EncodeToString(JetBrainsMonoNLBoldTTF)
+var JetBrainsMono string = base64.StdEncoding.EncodeToString(JetBrainsMonoRaw)
+var JetBrainsMonoBold string = base64.StdEncoding.EncodeToString(JetBrainsMonoBoldRaw)
+var JetBrainsMonoNL string = base64.StdEncoding.EncodeToString(JetBrainsMonoNLRaw)
+var JetBrainsMonoNLBold string = base64.StdEncoding.EncodeToString(JetBrainsMonoNLBoldRaw)
